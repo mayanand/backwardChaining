@@ -16,7 +16,7 @@ class kb(object):
         'H' : [('x', 'A(x)'), ('x', 'R(x)'), ('x', 'G(x)')],
         '~H' : [('y', 'D(x,y)')],
         'A' : [('x', 'B(x,y) ^ C(x,y)')],
-        'C' : ['x,y', 'D(x,y) ^ Q(y)'],
+        'C' : [('x,y', 'D(x,y) ^ Q(y)')],
         'G' : [('x','F(x)')],
         'F' : [('x','H(x)')],
         }
@@ -79,6 +79,9 @@ class kb(object):
                 print conjunctiveClauses
                 
                 for clause in conjunctiveClauses:
+                    
+                    print "clause ----------->", clause 
+                    
                     #check if there are exra variables in the lhs of the implication when comapred to rhs
                     #if found then add them to theta so that it can be used by the generator
                     
@@ -117,21 +120,30 @@ class kb(object):
                                     break
                                 
                                 
-                                # print '**************'
-                                # print self.visitedClauses
-                                # 
-                                # if unifiedClause not in self.visitedClauses:
-                                #     self.visitedClauses.append(unifiedClause)
-                                # else:
-                                #     print "loop found"
-                                #     self.visitedClauses = []
-                    
+
                     else:
+                        unifiedClause = self.replaceWithTheta(clause, conjunctUnificationRes)
                         if not self.infer(unifiedClause, conjunctUnificationRes):
                             break            #     break 
-                                    
-                return True
+                                
+            return True
         return False
+    
+    
+    
+    
+    
+    
+# print '**************'
+# print self.visitedClauses
+# 
+# if unifiedClause not in self.visitedClauses:
+#     self.visitedClauses.append(unifiedClause)
+# else:
+#     print "loop found"
+#     self.visitedClauses = []
+
+    
     
     def generateSub(self, queryArgsList, predicate):
         
@@ -205,4 +217,6 @@ class kb(object):
     
 if __name__ == "__main__":
     kb_obj = kb()
-    kb_obj.infer("A(John)", {})
+    final = kb_obj.infer("A(John)", {})
+    print "printing final"
+    print final
