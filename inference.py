@@ -5,12 +5,12 @@ import copy
 
 class kb(object):
     def __init__(self, initialKb = []):
-        self.facts = {
-        'B' : ["(John,Alice)", "(John,Bob)"],
-        'D' : ["(John,Alice)", "(John,Bob)"],
-        'R' : ["(Tom)"],
-        'Q' : ["(Bob)"],
-        }
+        # self.facts = {
+        # 'B' : ["(John,Alice)", "(John,Bob)"],
+        # 'D' : ["(John,Alice)", "(John,Bob)"],
+        # 'R' : ["(Tom)"],
+        # 'Q' : ["(Bob)"],
+        # }
             
         self.clauses = {
         'H' : [('x', 'A(x)'), ('x', 'R(x)'), ('x', 'G(x)')],
@@ -19,130 +19,80 @@ class kb(object):
         'C' : [('x,y', 'D(x,y) ^ Q(y)')],
         'G' : [('x','F(x)')],
         'F' : [('x','H(x)')],
+        'B' : [('John,Alice', 'True'), ('John,Bob', 'True')],
+        'D' : [('John,Alice', 'True'), ('John,Bob', 'True')],
+        'R' : [('Tom', 'True')],
+        'Q' : [('Bob', 'True')],
         }
         
-        self.regex = re.compile('(\w+)\((.*?)\)')   #hard coding the values here
+        self.regex = re.compile('(\S+)\((.*?)\)')   #hard coding the values here
         self.visitedClauses = []
     
-    def infer(self, quest, conjunctUnificationRes ={}):
         
+    def infer(self, goalList, theta):
+        answers = {}        #local variable
         
-        print "this is quest and conjunctUnificationRes", quest, conjunctUnificationRes
+        if len(goalList) == 0:
+            print "~~~~~~~~~~~~~~~~~~~~returning tfrom terminal condition with value of theta as: ", theta
+            return theta
+        
+        quest = goalList.pop(-1)
+        print "this is quest, goal list and theta", quest, goalList, theta
         
         #lhsRegex = re.compile('(\w+)(.*)')
         m = re.match(self.regex, quest)
         predicate = m.group(1)
         predArgs = m.group(2)
+        predArgsList = predArgs.split(",")
+        #print '************** predargs'
+        #print predArgs
         
-        print '************** predargs'
-        print predArgs
+        qDash = self.replaceWithTheta(predArgs, theta)
         
-        constant = predArgs.split(",") #[x.strip for x in predArgs.split(",")]
-        
-        #looking for the predicate in the facts to see if it is available        
-        if predicate in self.facts:
-            #checking whether unification is complete
-            #this check needs to be fixed right now
-            if self.isVariableInQuestArgs(constant): 
-                #need to ensure that the arguments matches the finc signature
-                for choice in self.generateSub(constant, predicate):
-                    print "printing the generate stuff", choice
-                    conjunctUnificationRes.update(choice)
-                    print "returning true afte unifictaion and the theta valus is", conjunctUnificationRes
-                    return True
-                
-                
+        print "qdash isconstant", qDash, self.isConstantQuery(qDash)
+        print "visted clauses", self.visitedClauses
+        constantQuery = predicate + '(' + qDash + ')'
+        if self.isConstantQuery(qDash):
+            if constantQuery not in self.visitedClauses:
+                self.visitedClauses.append(constantQuery)
             else:
-                for fact in self.facts[predicate]:
-                    print 'printing facts', fact
-                    if predArgs in fact:
-                        print "returning true after finding the quest in facts"
-                        return True
-                    else:
-                        return False
+                return answers
         
-        #checking if predicate is a part of the clause
-        if not predicate in self.clauses:
-            print "Cant be proved as there are no predcate in clauses"
-            return "False"
-        
-        
-        print "printig all predicates"
-        print  self.clauses[predicate]
-        
-        
-        for lhs in self.clauses[predicate]:        
             
-            print "prinitng lhs"
-            print lhs
+        if predicate in self.clauses:
+            print "printig all predicates"
+            print  self.clauses[predicate]
             
-            arguments =  lhs[0].split(',')
-            
-            print "atguments and constants"
-            print arguments, constant
-            unificatonRes = self.unify(arguments, constant)
-            print "unification result", unificatonRes
-    
-            
-            if unificatonRes:
-                conjunctUnificationRes = copy.deepcopy(unificatonRes)
-                conjunctiveClauses = [x.strip() for x in lhs[1].split("^")]
+            #this is or node. so one of them has to be correct
+            for lhs in self.clauses[predicate]:        
+
+                print "prinitng lhs"
+                print lhs
+                #need to standerdize the variables here before proceeding
+                arguments =  lhs[0].split(',')
+                thetaDash = self.unify(arguments, qDash.split(','))
+                print '*******************'
+                print thetaDash, type(thetaDash), bool(thetaDash)
+                newGoalList = copy.deepcopy(goalList)
                 
-                print "the conjunctive clause"
-                print conjunctiveClauses
-                
-                for clause in conjunctiveClauses:
-                    
-                    print "clause ----------->", clause 
-                    unifiedClause = self.replaceWithTheta(clause, conjunctUnificationRes)
-                    print "the unifiedClause and the status of theta now"
-                    print unifiedClause, conjunctUnificationRes
-                    
-                    if not self.infer(unifiedClause, conjunctUnificationRes):
-                        print "<<<<<<<<<<<<<<<<<<<<breaking here because the inference returned is false"
-                        break
-                                 
-            return True
-        return False
-    
-    def generateSub(self, queryArgsList, predicate):
-        """
-            Generator used to generate different values of theta whenever possible
-            @param: queryArgsList -> the arguments of the query which has been unified so far
-                    predicate -> predicate of the query
-            returns a new theta dict everytime
-        """
-        
-        factArgList = self.facts[predicate]
-        
-        for eachArgSet in factArgList:
-            thetaDict = {}
-            counter = 0
-            removeParanRegex = re.compile('\((.*?)\)')
-            m = re.search(removeParanRegex, eachArgSet)
-            eachArgSet = m.group(1)
-            eachArgList = eachArgSet.split(',')
-            
-            # print "------------------ > each queryarglist and eacharglist and eachargset"
-            # print queryArgsList, eachArgList, eachArgSet
-            
-            for arg in queryArgsList:
-                if self.isVariable(arg):
-                    thetaDict[arg]= eachArgList[counter]
+                if thetaDash != 'False':       #check whether unification succeeds
+                    if lhs[1] != 'True':
+                        # print "the conjunctive clause"
+                        # print conjunctiveClauses
+                        conjunctiveClauses = [x.strip() for x in lhs[1].split("^")]
+                        newGoalList.extend(conjunctiveClauses)     #adding new goals to goal list
+                    composedTheta = self.compose(thetaDash, theta)
+                        #unify answers here    
+                    print "----> answers, thetaDash, theta, composedTheta, newGoalList"
+                    print answers, thetaDash, theta, composedTheta, newGoalList
+                    answers.update(self.infer(newGoalList, composedTheta))                    
+                    print "priting ansers", answers
                 else:
-                    # print '^^^^^^^^^^^^^^^^^^^^^^^^'
-                    # print arg, eachArgList[counter]
-                    
-                    if arg == eachArgList[counter]:
-                        pass
-                    else:
-                        yield {}
-    
-                counter += 1
-            # print '&&&&&&&&&&&& this has to be fixed'
-            # print thetaDict
-            yield thetaDict
-    
+                    print 'passing here as unification could not be done'
+                    pass
+            return answers
+        
+        return answers
     
     def isVariableInQuestArgs(self, questArgs):
         """
@@ -184,14 +134,12 @@ class kb(object):
         m = re.match(regex, string)
         
         if m:
-            #print"true"
             return True
         else:
-            #print "false"
             return False
     
     
-    def unify(self, argumentList, constantList, unifierDict = {}):
+    def unify(self, argumentList, constantList):
         #need to standerdize here before unification      
         """
             function to unify arguments of 2 instances of a predicate
@@ -202,27 +150,57 @@ class kb(object):
             returns the uninfied dict if unification was possible
                     else returns False
         """
-        
-        
         counter = 0
+        unifierDict = {}
         
         for item in argumentList:
+            
             if (self.isVariable(item) and self.isVariable(constantList[counter])):
                 unifierDict[item] = item #replace one variable by another
             elif (not self.isVariable(item) and self.isVariable(constantList[counter])):
                 unifierDict[constantList[counter]] = item
             elif (self.isVariable(item) and  not self.isVariable(constantList[counter])):
                 unifierDict[item] = constantList[counter]
+            elif (item == constantList[counter]):
+                pass
             else:   #in this case both are constants and hence cant be unified
-                print "false and cant be unified"
-                return False
+                return 'False'
             counter += 1
         # print "True inside the unifier"
         # print unifierDict
         return unifierDict
     
+    def compose(self, thetaOne, thetaTwo):    
+        
+        sc = {}
+        for k, v in thetaOne.iteritems():
+            if v in thetaTwo:
+                w = thetaTwo[v]
+                sc[k] = w 
+            else:
+                sc[k] = v
+        for k, v in thetaTwo.iteritems():
+            if not k in thetaOne:
+                sc[k] = v
+            
+        return sc
+        
+    def isConstantQuery(self, arguments):
+        """
+         helper function to check if all the arguments are constants or not.
+         @param: arguments is a comma separated string consisting of all arguments
+         returns True is all te arguments are constant else returns false
+        """
+        argList = arguments.split(',')
+         
+        for arg in argList:
+            if self.isVariable(arg):
+                return False
+        return True
+
+    
 if __name__ == "__main__":
     kb_obj = kb()
-    final = kb_obj.infer("A(John)", {})
+    final = kb_obj.infer(["H(John)"], {})
     print "printing final"
     print final
