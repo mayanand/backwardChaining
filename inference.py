@@ -2,31 +2,48 @@
 
 import re
 import copy
+import sys
 
 class kb(object):
     def __init__(self, initialKb = []):
-        # self.facts = {
-        # 'B' : ["(John,Alice)", "(John,Bob)"],
-        # 'D' : ["(John,Alice)", "(John,Bob)"],
-        # 'R' : ["(Tom)"],
-        # 'Q' : ["(Bob)"],
-        # }
             
+        # self.clauses = {
+        #     'F': [('y,x', 'G(x,y)')],
+        #     'G': [('SS,S', 'True'), ('x,y', 'F(S,SS)')],
+        # }
+        # self.clauses = {
+        # 'H' : [('x', 'A(x)'), ('x', 'R(x)'), ('x', 'G(x)')],
+        # '~H' : [('y', 'D(x,y)')],
+        # 'A' : [('x', 'B(x,y) ^ C(x,y)')],
+        # 'C' : [('x,y', 'D(x,y) ^ Q(y)')],
+        # 'G' : [('x','F(x)')],
+        # 'F' : [('x','H(x)')],
+        # 'B' : [('John,Alice', 'True'), ('John,Bob', 'True')],
+        # 'D' : [('John,Alice', 'True'), ('John,Bob', 'True')],
+        # 'R' : [('Tom', 'True')],
+        # 'Q' : [('Bob', 'True')],
+        # }
+        
+        # self.clauses = {
+        #     'C': [('x,w', 'A(x,y) ^ B(z,w)')],
+        #     'A': [('x,y', 'C(y,x)'), ('EE,CS', 'True')],
+        #     'B': [('y,x', 'C(x,y)'), ('MS,PHD', 'True')],
+        # }
+
+ 
         self.clauses = {
-        'H' : [('x', 'A(x)'), ('x', 'R(x)'), ('x', 'G(x)')],
-        '~H' : [('y', 'D(x,y)')],
-        'A' : [('x', 'B(x,y) ^ C(x,y)')],
-        'C' : [('x,y', 'D(x,y) ^ Q(y)')],
-        'G' : [('x','F(x)')],
-        'F' : [('x','H(x)')],
-        'B' : [('John,Alice', 'True'), ('John,Bob', 'True')],
-        'D' : [('John,Alice', 'True'), ('John,Bob', 'True')],
-        'R' : [('Tom', 'True')],
-        'Q' : [('Bob', 'True')],
+            'Fly': [('y', 'G(y,b) ^ Fly(x) ^ Friend(x,b) ^ H(y)'), ('x', 'Parent(x,y) ^ Hero(y)') ],
+            'H': [('Tom)', 'True'), ('Ram', 'True'), ('Cruise', 'True'), ('Pilot', 'True')],
+            'G': [('Ram, Ram', 'True'), ('Cruise,Cruise', 'True'), ('Tom,Tom', 'True'), ('Pilot,Pilot', 'True')],
+            'Parent': [('Dr,Doom', 'True')],
+            'Hero': [('Doom', 'True')],
+            'Friend': [('Dr,Pilot', 'True'), ('Pilot,Tom', 'True'), ('Tom,Cruise', 'True'), ('Cruise,Ram', 'True')]
         }
         
         self.regex = re.compile('(\S+)\((.*?)\)')   #hard coding the values here
         self.visitedClauses = []
+        self.std_ctr = 1
+        self.std_rules = {}
     
         
     def infer(self, goalList, theta):
@@ -64,8 +81,8 @@ class kb(object):
             print  self.clauses[predicate]
             
             #this is or node. so one of them has to be correct
-            for lhs in self.clauses[predicate]:        
-
+            for rule in self.clauses[predicate]:        
+                lhs = self.standardizeApart(rule)
                 print "prinitng lhs"
                 print lhs
                 #need to standerdize the variables here before proceeding
@@ -170,6 +187,55 @@ class kb(object):
         # print unifierDict
         return unifierDict
     
+    def standardizeApart(self, rule):
+        
+        print '--------------------?'
+        print "printing std rules and rule"
+        print self.std_rules, rule
+        
+        # if rule[1] == 'True':
+        #     return rule
+        
+        stdDict = {}
+        standardizedPredList = []
+        #rule = ('x', 'A(x)')
+        lhsVarList = rule[0].split(',')
+        
+        for var in lhsVarList:
+            if (not var in stdDict and self.isVariable(var)):
+                stdDict[var] = var + str(self.std_ctr)
+                self.std_ctr += 1
+        
+        if rule[1] == 'True':
+            return rule
+        else:
+            conjunctiveClauses = [x.strip() for x in rule[1].split("^")]
+            for clause in conjunctiveClauses:
+                m = re.match(self.regex, clause)
+                if m:
+                    predicate = m.group(1)
+                    predArgs = m.group(2)
+                    predArgsList = predArgs.split(",")
+                    
+                    for rVar in predArgsList:
+                        if (not rVar in stdDict and self.isVariable(rVar)):
+                            stdDict[rVar] = rVar + str(self.std_ctr)
+                            self.std_ctr += 1
+                    
+                    print stdDict        
+                    
+                    standardizedPred = predicate + '(' + ','.join(map(str, [stdDict.get(x, x) for x in predArgsList])) + ')'
+                    standardizedPredList.append(standardizedPred)
+        
+        resLHSZero = ','.join(map(str, [stdDict.get(x, x) for x in lhsVarList]))
+        resLHSOne = ' ^ '.join(map(str, standardizedPredList))
+        
+        resTuple = (resLHSZero, resLHSOne)
+        
+        print resTuple
+        # self.std_rules[rule] = copy.deepcopy(resTuple)
+        return resTuple
+    
     def compose(self, thetaOne, thetaTwo):    
         
         sc = {}
@@ -198,9 +264,30 @@ class kb(object):
                 return False
         return True
 
+def parse(inputFH):
+    queryList = []
+    noOfQuery = int(inputFH.readline())
+    for x in xrange(0, noOfQuery):
+        queryList.append(inputFH.readline().strip('\n'))
+    print queryList
+    noOfRules = int(inputFH.readline())
+    rawRules = [x.strip('\n') for x in inputFH.readlines()]
+    print inputFH.readlines()
+
     
 if __name__ == "__main__":
+    
+    # print sys.argv
+    # fileName = str(sys.argv[-1])
+    # file_handle = open(fileName,'r')
+    # opFH = open("output.txt","w")
+    # parse(file_handle)
+    
     kb_obj = kb()
-    final = kb_obj.infer(["H(John)"], {})
+    final = kb_obj.infer(["Fly(Ram)"], {})
     print "printing final"
     print final
+    
+
+    
+    
