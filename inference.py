@@ -58,24 +58,23 @@ class kb(object):
         answers = {}        #local variable
         
         if len(goalList) == 0:
+            print "VISITED CLAUSES"
+            print self.visitedClauses
             print "~~~~~~~~~~~~~~~~~~~~returning tfrom terminal condition with value of theta as: ", theta
             return theta
         
         quest = goalList.pop(-1)
         print "this is quest, goal list and theta", quest, goalList, theta
         
-        #lhsRegex = re.compile('(\w+)(.*)')
         m = re.match(self.regex, quest)
         predicate = m.group(1)
         predArgs = m.group(2)
         predArgsList = predArgs.split(",")
-        #print '************** predargs'
-        #print predArgs
         
-        qDash = self.replaceWithTheta(predArgs, theta)
+        qDash = self.replaceWithTheta(predArgsList, theta)
         
-        print "qdash isconstant", qDash, self.isConstantQuery(qDash)
-        print "visted clauses", self.visitedClauses
+        # print "qdash isconstant", qDash, self.isConstantQuery(qDash)
+        # print "visted clauses", self.visitedClauses
         constantQuery = predicate + '(' + qDash + ')'
         if self.isConstantQuery(qDash):
             if constantQuery not in self.visitedClauses:
@@ -83,22 +82,21 @@ class kb(object):
             else:
                 return answers
         
+        newGoalList = copy.deepcopy(goalList)
             
         if predicate in self.clauses:
-            print "printig all predicates"
-            print  self.clauses[predicate]
+            # print "printig all predicates"
+            # print  self.clauses[predicate]
             
             #this is or node. so one of them has to be correct
             for rule in self.clauses[predicate]:        
                 lhs = self.standardizeApart(rule)
-                print "prinitng lhs"
-                print lhs
-                #need to standerdize the variables here before proceeding
+                # print "prinitng lhs"
+                # print lhs
                 arguments =  lhs[0].split(',')
                 thetaDash = self.unify(arguments, qDash.split(','))
-                print '*******************'
-                print thetaDash, type(thetaDash), bool(thetaDash)
-                newGoalList = copy.deepcopy(goalList)
+                # print '*******************'
+                # print thetaDash, type(thetaDash), bool(thetaDash)
                 
                 if thetaDash != 'False':       #check whether unification succeeds
                     if lhs[1] != 'True':
@@ -136,15 +134,21 @@ class kb(object):
         
         """
             helper function to replace the expression with unified expression
-            @param: expr is a string
+            @param: list of strings as arguments
                     thetaDict is a dict
             returns the subtituted expression
         """
         
-        for variable, constant in thetaDict.iteritems():
-            if variable in expr:    #this should be refined as it is very crude right now
-                expr = expr.replace(variable, constant)
-        return expr
+        newExprList = []
+        for item in expr:
+            if item in thetaDict:
+                newExprList.append(thetaDict[item])
+            else:
+                newExprList.append(item)
+        
+        newExpr = ','.join(newExprList)
+        
+        return newExpr
     
     
     def isVariable(self, string):
@@ -178,14 +182,28 @@ class kb(object):
         counter = 0
         unifierDict = {}
         
+        # print "-------------> inside unify"
+        # print argumentList, constantList
+        
         for item in argumentList:
             
             if (self.isVariable(item) and self.isVariable(constantList[counter])):
-                unifierDict[item] = item #replace one variable by another
+                if constantList[counter] in unifierDict:
+                    unifierDict[unifierDict[constantList[counter]]] = item
+                else:    
+                    unifierDict[constantList[counter]] = item #replace one variable by another
             elif (not self.isVariable(item) and self.isVariable(constantList[counter])):
-                unifierDict[constantList[counter]] = item
+                if constantList[counter] in unifierDict:
+                    if unifierDict[constantList[counter]] != item:
+                        return 'False'
+                else:
+                    unifierDict[constantList[counter]] = item
             elif (self.isVariable(item) and  not self.isVariable(constantList[counter])):
-                unifierDict[item] = constantList[counter]
+                if item in unifierDict:
+                    if unifierDict[item] != constantList[counter]:
+                        return 'False'
+                else:
+                    unifierDict[item] = constantList[counter]
             elif (item == constantList[counter]):
                 pass
             else:   #in this case both are constants and hence cant be unified
@@ -197,9 +215,9 @@ class kb(object):
     
     def standardizeApart(self, rule):
         
-        print '--------------------?'
-        print "printing std rules and rule"
-        print self.std_rules, rule
+        # print '--------------------?'
+        # print "printing std rules and rule"
+        # print self.std_rules, rule
         
         # if rule[1] == 'True':
         #     return rule
@@ -230,7 +248,7 @@ class kb(object):
                             stdDict[rVar] = rVar + str(self.std_ctr)
                             self.std_ctr += 1
                     
-                    print stdDict        
+        #            print stdDict        
                     
                     standardizedPred = predicate + '(' + ','.join(map(str, [stdDict.get(x, x) for x in predArgsList])) + ')'
                     standardizedPredList.append(standardizedPred)
@@ -240,7 +258,7 @@ class kb(object):
         
         resTuple = (resLHSZero, resLHSOne)
         
-        print resTuple
+        # print resTuple
         # self.std_rules[rule] = copy.deepcopy(resTuple)
         return resTuple
     
@@ -278,9 +296,7 @@ def processRawRules(ruleList):
     ruleDict = collections.defaultdict(list)
     regex = re.compile('(\S+)\((.*?)\)')   #hard coding the values here
     for raw in ruleList:
-        print raw
         splitRule = [x.strip() for x in raw.split("=>")]
-        print splitRule
         if len(splitRule) > 1:
             m = re.match(regex, splitRule[1])
             ruleDict[m.group(1)].append((m.group(2), splitRule[0]))
@@ -315,9 +331,9 @@ if __name__ == "__main__":
     opFH = open("output.txt","w")
     processedRule, queryList = parse(file_handle)
     
-    print '&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&'
-    print processedRule
-    print queryList
+    # print '&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&'
+    # print processedRule
+    # print queryList
 
     kb_obj = kb(processedRule)
     
