@@ -78,7 +78,8 @@ class kb(object):
         constantQuery = predicate + '(' + qDash + ')'
         if self.isConstantQuery(qDash):
             if constantQuery not in self.visitedClauses:
-                self.visitedClauses.append(constantQuery)
+                if not self.isFact(predicate, qDash):
+                    self.visitedClauses.append(constantQuery)
             else:
                 return answers
         
@@ -286,6 +287,20 @@ class kb(object):
                 sc[k] = v
             
         return sc
+    
+    def isFact(self, pred, argString):
+        """
+            @params: pred is the predicate of the query
+                     argString is the comma separate string or arguments
+            returns true if it is a fact else returns false
+        """
+        if pred in self.clauses:
+            for clause in self.clauses[pred]:
+                if argString == clause[0] and clause[1] == 'True':
+                    return True
+        
+        return False
+                
         
     def isConstantQuery(self, arguments):
         """
