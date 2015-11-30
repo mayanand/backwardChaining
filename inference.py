@@ -5,8 +5,9 @@ import copy
 import sys
 
 class kb(object):
-    def __init__(self, initialKb = []):
-            
+    def __init__(self, clauses = {}):
+        
+        self.clauses = clauses
         # self.clauses = {
         #     'F': [('y,x', 'G(x,y)')],
         #     'G': [('SS,S', 'True'), ('x,y', 'F(S,SS)')],
@@ -31,14 +32,21 @@ class kb(object):
         # }
 
  
-        self.clauses = {
-            'Fly': [('y', 'G(y,b) ^ Fly(x) ^ Friend(x,b) ^ H(y)'), ('x', 'Parent(x,y) ^ Hero(y)') ],
-            'H': [('Tom)', 'True'), ('Ram', 'True'), ('Cruise', 'True'), ('Pilot', 'True')],
-            'G': [('Ram, Ram', 'True'), ('Cruise,Cruise', 'True'), ('Tom,Tom', 'True'), ('Pilot,Pilot', 'True')],
-            'Parent': [('Dr,Doom', 'True')],
-            'Hero': [('Doom', 'True')],
-            'Friend': [('Dr,Pilot', 'True'), ('Pilot,Tom', 'True'), ('Tom,Cruise', 'True'), ('Cruise,Ram', 'True')]
-        }
+        # self.clauses = {
+        #     'Fly': [('y', 'G(y,b) ^ Fly(x) ^ Friend(x,b) ^ H(y)'), ('x', 'Parent(x,y) ^ Hero(y)') ],
+        #     'H': [('Tom)', 'True'), ('Ram', 'True'), ('Cruise', 'True'), ('Pilot', 'True')],
+        #     'G': [('Ram, Ram', 'True'), ('Cruise,Cruise', 'True'), ('Tom,Tom', 'True'), ('Pilot,Pilot', 'True')],
+        #     'Parent': [('Dr,Doom', 'True')],
+        #     'Hero': [('Doom', 'True')],
+        #     'Friend': [('Dr,Pilot', 'True'), ('Pilot,Tom', 'True'), ('Tom,Cruise', 'True'), ('Cruise,Ram', 'True')]
+        # }
+        
+        # self.clauses = {
+        #     'Uncle': [('x,z', 'Male(x) ^ Parent(m,z) ^ Sibling(x,m)')],
+        #     'Father': [('x,y', 'Parent(x,y)'), ('Shawn,John', 'True'), ('Suresh,Ramesh', 'True'), ('Shawn,Neelu', 'True')],
+        #     'Mother': [('x,y', 'Parent(x,y)'), ('Kill,Bill', 'True'), ('Neelu,Sarah', 'True')],       
+        #     'Sibling': [('p,w', 'Parent(x,p) ^ Parent(x,w) ^ Parent(a,b) ^ Parent(c,d)')]
+        # }
         
         self.regex = re.compile('(\S+)\((.*?)\)')   #hard coding the values here
         self.visitedClauses = []
@@ -46,7 +54,7 @@ class kb(object):
         self.std_rules = {}
     
         
-    def infer(self, goalList, theta):
+    def infer(self, goalList, theta = {}):
         answers = {}        #local variable
         
         if len(goalList) == 0:
@@ -264,29 +272,72 @@ class kb(object):
                 return False
         return True
 
+def processRawRules(ruleList):
+    
+    import collections
+    ruleDict = collections.defaultdict(list)
+    regex = re.compile('(\S+)\((.*?)\)')   #hard coding the values here
+    for raw in ruleList:
+        print raw
+        splitRule = [x.strip() for x in raw.split("=>")]
+        print splitRule
+        if len(splitRule) > 1:
+            m = re.match(regex, splitRule[1])
+            ruleDict[m.group(1)].append((m.group(2), splitRule[0]))
+        elif len(splitRule) == 1:
+            m = re.match(regex, splitRule[0])
+            ruleDict[m.group(1)].append((m.group(2), 'True'))
+        else:
+            print "the input data has issues"
+    return ruleDict
+
+
 def parse(inputFH):
     queryList = []
     noOfQuery = int(inputFH.readline())
     for x in xrange(0, noOfQuery):
         queryList.append(inputFH.readline().strip('\n'))
-    print queryList
     noOfRules = int(inputFH.readline())
     rawRules = [x.strip('\n') for x in inputFH.readlines()]
-    print inputFH.readlines()
-
+    processedRule = processRawRules(rawRules)
+    
+    return processedRule, queryList
+    
+    
+    
+    
     
 if __name__ == "__main__":
     
-    # print sys.argv
-    # fileName = str(sys.argv[-1])
-    # file_handle = open(fileName,'r')
-    # opFH = open("output.txt","w")
-    # parse(file_handle)
+    print sys.argv
+    fileName = str(sys.argv[-1])
+    file_handle = open(fileName,'r')
+    opFH = open("output.txt","w")
+    processedRule, queryList = parse(file_handle)
     
-    kb_obj = kb()
-    final = kb_obj.infer(["Fly(Ram)"], {})
-    print "printing final"
-    print final
+    print '&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&'
+    print processedRule
+    print queryList
+
+    kb_obj = kb(processedRule)
+    
+    for query in queryList:
+        kb_obj.visitedClauses = []
+        goalList = []
+        goalList.append(query)
+        final = kb_obj.infer(goalList)
+        #write a try catch thing here to ensure that we always get an output
+        ans = 'FALSE'
+        if final:
+            ans = 'TRUE'
+        opFH.write(ans + '\n')
+        print "##############################"
+        
+    
+    opFH.close()
+    # final = kb_obj.infer(["Uncle(John,Sarah)"], {})
+    # print "printing final"
+    # print final
     
 
     
