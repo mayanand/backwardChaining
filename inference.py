@@ -141,8 +141,18 @@ class kb(object):
         
         newExprList = []
         for item in expr:
+            visitedNode = []
             if item in thetaDict:
-                newExprList.append(thetaDict[item])
+                value = thetaDict[item]
+                
+                while self.isVariable(value):
+                    if value not in visitedNode:
+                        visitedNode.append(value)
+                    else:
+                        value = thetaDict.get(value, value)
+                        break
+
+                newExprList.append(value)      
             else:
                 newExprList.append(item)
         
@@ -336,6 +346,10 @@ if __name__ == "__main__":
     # print queryList
 
     kb_obj = kb(processedRule)
+    
+    # strList = ['x2', 'x3']
+    # thetaDit = {'x2':'x3', 'x3':'Sara'}
+    # print kb_obj.replaceWithTheta(strList, thetaDit)
     
     for query in queryList:
         kb_obj.visitedClauses = []
