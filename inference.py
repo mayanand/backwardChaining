@@ -3,6 +3,7 @@
 import re
 import copy
 import sys
+import pdb
 
 class kb(object):
     def __init__(self, clauses = {}):
@@ -58,13 +59,13 @@ class kb(object):
         answers = {}        #local variable
         
         if len(goalList) == 0:
-            print "VISITED CLAUSES"
-            print self.visitedClauses
-            print "~~~~~~~~~~~~~~~~~~~~returning tfrom terminal condition with value of theta as: ", theta
+            # print "VISITED CLAUSES"
+            # print self.visitedClauses
+            # print "~~~~~~~~~~~~~~~~~~~~returning tfrom terminal condition with value of theta as: ", theta
             return theta
         
         quest = goalList.pop(-1)
-        print "this is quest, goal list and theta", quest, goalList, theta
+        # print "this is quest, goal list and theta", quest, goalList, theta
         
         m = re.match(self.regex, quest)
         predicate = m.group(1)
@@ -86,6 +87,7 @@ class kb(object):
         newGoalList = copy.deepcopy(goalList)
             
         if predicate in self.clauses:
+            
             # print "printig all predicates"
             # print  self.clauses[predicate]
             
@@ -107,16 +109,17 @@ class kb(object):
                         newGoalList.extend(conjunctiveClauses)     #adding new goals to goal list
                     composedTheta = self.compose(thetaDash, theta)
                         #unify answers here    
-                    print "----> answers, thetaDash, theta, composedTheta, newGoalList"
-                    print answers, thetaDash, theta, composedTheta, newGoalList
+                    # print "----> answers, thetaDash, theta, composedTheta, newGoalList"
+                    # print answers, thetaDash, theta, composedTheta, newGoalList
                     answers.update(self.infer(newGoalList, composedTheta))                    
-                    print "priting ansers", answers
+                    # print "priting ansers", answers
                 else:
-                    print 'passing here as unification could not be done'
+                    # print 'passing here as unification could not be done'        
                     pass
             return answers
-        
         return answers
+    
+        
     
     def isVariableInQuestArgs(self, questArgs):
         """
@@ -370,7 +373,12 @@ if __name__ == "__main__":
         kb_obj.visitedClauses = []
         goalList = []
         goalList.append(query)
-        final = kb_obj.infer(goalList)
+        final = {}
+        try:
+            final = kb_obj.infer(goalList)
+        except Exception as e:
+            print '!!!!!!!!!!!! exception: ', e
+            print 'I just want to avoid a crash and print false in this case'
         #write a try catch thing here to ensure that we always get an output
         ans = 'FALSE'
         if final:
